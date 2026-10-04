@@ -9,6 +9,7 @@ import { extractedFileLenses, testFileLenses } from "./lenses.ts";
 import { forgetLibrary } from "./library.ts";
 import { openAllPages, openPage } from "./page.ts";
 import { printed } from "./printed.ts";
+import { CONFIG_GLOB, forgetProjects } from "./project.ts";
 import { testRunner, type TestRunner } from "./runner.ts";
 import { childrenOf, everyItem, testTree, type TestTree } from "./tree.ts";
 import { pluginWarnings } from "./warnings.ts";
@@ -128,8 +129,22 @@ function followDocuments({ tree, runner }: Parts, lensesChanged: vscode.EventEmi
       tree.load(document.uri, document.getText());
       lensesChanged.fire();
     }),
-    vscode.workspace.onDidChangeWorkspaceFolders(forgetLibrary),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => (forgetLibrary(), forgetProjects())),
+    ...followConfigs(tree),
   ];
+}
+
+// a Vite config that gains or loses the plugin moves which project its components belong to
+function followConfigs(tree: TestTree) {
+  const watcher = vscode.workspace.createFileSystemWatcher(CONFIG_GLOB);
+  const changed = () => {
+    forgetProjects();
+    for (const document of vscode.workspace.textDocuments) if (isComponent(document)) tree.load(document.uri);
+  };
+  watcher.onDidChange(changed);
+  watcher.onDidCreate(changed);
+  watcher.onDidDelete(changed);
+  return [watcher];
 }
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -157,7 +172,7 @@ export function activate(context: vscode.ExtensionContext): void {
     extractedFileLenses(),
     ...testCommands(parts),
     ...generatedCommands(parts),
-    ...pluginWarnings(warnings),
+    pluginWarnings(warnings),
   );
   void controller.resolveHandler(undefined);
   context.subscriptions.push(...followDocuments(parts, lensesChanged));

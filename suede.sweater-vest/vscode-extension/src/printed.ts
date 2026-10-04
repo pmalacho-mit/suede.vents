@@ -1,8 +1,7 @@
 import path from "node:path";
 import * as vscode from "vscode";
 
-import { ID, folderOf } from "./editor.ts";
-import { findLibrary } from "./library.ts";
+import { ID, folderOf, libraryOf } from "./editor.ts";
 import { exec } from "./process.ts";
 
 const configuredCommand = () => vscode.workspace.getConfiguration(ID).get<string>("cliCommand", "");
@@ -16,7 +15,7 @@ function commandFor(uri: vscode.Uri, cwd: string, rest: string[]): Command {
     const [command = "", ...args] = configured.split(" ");
     return [command, [...args, file, ...rest]];
   }
-  const library = findLibrary(cwd);
+  const library = libraryOf(uri);
   if (!library)
     throw new Error(`Could not find sweater-vest's cli.ts in this workspace; set ${ID}.cliCommand`);
   return ["node", [library.cli, file, ...rest]];

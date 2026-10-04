@@ -9,12 +9,12 @@ const isSearchable = (entry: fs.Dirent) => !entry.name.startsWith(".") && !SKIPP
 
 // wherever the library is installed, the DSL keeps its name, the command line sits beside it,
 // and `runtimes/common.svelte.ts` tells it apart from namespace-tests, whose DSL shares the name
-const isLibrary = (dir: string) =>
+export const isLibrary = (dir: string) =>
   ["dsl.import.meta.vitest.ts", "cli.ts", path.join("runtimes", "common.svelte.ts")].every((file) =>
     fs.existsSync(path.join(dir, file)),
   );
 
-const libraryAt = (root: string): Library => ({
+export const libraryAt = (root: string): Library => ({
   root,
   cli: path.join(root, "cli.ts"),
   derived: path.join(root, ".derived"),

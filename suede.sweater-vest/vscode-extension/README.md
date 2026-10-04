@@ -51,6 +51,17 @@ The extension bundles the library's analyser at build time. After updating the
 library, run `npm run install-extension` again, or its lenses may disagree
 with what the plugin does.
 
+## An app in a subdirectory
+
+A component's project is the nearest directory above it whose Vite or Vitest
+config imports the plugin, not necessarily the workspace folder. So an app in
+a subdirectory of a repository — a workspace package such as `app/` beside the
+library it demonstrates — needs nothing configured: Vitest runs from `app/`,
+pages are keyed relative to it (as its dev server keys them), and the command
+line is the one that config imports. Where no config above a component imports
+the plugin, the workspace folder is used, as before. Editing a config is picked
+up as you save it.
+
 ## About extracted files
 
 They are yours. Edit them freely — nothing regenerates them behind your back,

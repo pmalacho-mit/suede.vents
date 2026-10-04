@@ -2,8 +2,8 @@ import fs from "node:fs";
 import * as vscode from "vscode";
 
 import { discover, hasTests, type DiscoveredTest } from "./discovery.ts";
-import { folderOf, rangeOf } from "./editor.ts";
-import { findLibrary, type Library } from "./library.ts";
+import { folderOf, libraryOf, rangeOf } from "./editor.ts";
+import type { Library } from "./library.ts";
 import { parseWithCompilerOf } from "./svelte.ts";
 
 export type LocatedItem = vscode.TestItem & { uri: vscode.Uri };
@@ -44,7 +44,7 @@ export function testTree(controller: vscode.TestController, output: vscode.Outpu
 
   const parsable = (uri: vscode.Uri) => {
     const folder = folderOf(uri);
-    const library = findLibrary(folder);
+    const library = libraryOf(uri);
     if (library && parseWithCompilerOf(folder)) return true;
     if (!toldUnparsable.has(folder)) {
       toldUnparsable.add(folder);

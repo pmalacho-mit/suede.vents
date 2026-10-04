@@ -5,6 +5,7 @@ import * as vscode from "vscode";
 import { extracted, tempPathFor } from "../../extract.ts";
 import { closeEditorsFor, contentsOf, folderOf, openHere, orComplain, quoteArg } from "./editor.ts";
 import { printed } from "./printed.ts";
+import { vitestEntryFrom } from "./project.ts";
 
 import type { LocatedItem } from "./tree.ts";
 
@@ -55,7 +56,7 @@ const debugConfiguration = (cwd: string, relative: string): vscode.DebugConfigur
   request: "launch",
   name: `Debug ${path.basename(relative)}`,
   cwd,
-  program: path.join(cwd, "node_modules", "vitest", "vitest.mjs"),
+  program: vitestEntryFrom(cwd) ?? path.join(cwd, "node_modules", "vitest", "vitest.mjs"),
   // one process, no timeout: a breakpoint that is sat on is not a failure
   args: ["run", relative, "--no-file-parallelism", "--testTimeout=0"],
   autoAttachChildProcesses: true,

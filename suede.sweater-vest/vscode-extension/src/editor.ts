@@ -2,6 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import * as vscode from "vscode";
 
+import { findLibrary } from "./library.ts";
+import { projectOf } from "./project.ts";
+
 export const ID = "sweater-vest";
 
 export type Span = { line: number; column: number; length: number };
@@ -15,8 +18,25 @@ export const diagnosticAt = (span: Span, message: string, severity: vscode.Diagn
   return diagnostic;
 };
 
-export const folderOf = (uri: vscode.Uri) =>
+export const workspaceFolderOf = (uri: vscode.Uri) =>
   vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath ?? path.dirname(uri.fsPath);
+
+/**
+ * The directory a component's project runs from: where Vitest is started, the
+ * command line runs, and page keys are relative to. The nearest directory above
+ * the file whose Vite config imports the library's plugin (an app in a
+ * subdirectory of the workspace), else the workspace folder.
+ */
+export const folderOf = (uri: vscode.Uri) => {
+  const workspace = workspaceFolderOf(uri);
+  return projectOf(uri.fsPath, workspace)?.root ?? workspace;
+};
+
+/** The library a component's project uses: the one its Vite config imports, else the first in the workspace. */
+export const libraryOf = (uri: vscode.Uri) => {
+  const workspace = workspaceFolderOf(uri);
+  return projectOf(uri.fsPath, workspace)?.library ?? findLibrary(workspace);
+};
 
 // an open editor's unsaved text is the truth, not what was last written
 export const contentsOf = (uri: vscode.Uri) => {
