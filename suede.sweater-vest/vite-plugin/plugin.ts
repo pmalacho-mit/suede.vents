@@ -182,7 +182,8 @@ function sweaterVest({
     context: { warn(message: string): void; error(message: string): never },
   ) => {
     const rel = path.relative(cwd, analysis.file);
-    diagnostics[rel] = analysis.warnings;
+    // absolute: projects in subdirectories share one library, so no single root resolves them all
+    diagnostics[analysis.file] = analysis.warnings;
     writeDiagnostics(diagnostics);
     const where = (w: Warning) =>
       `${rel}:${w.line + 1}:${w.column + 1} ${w.message}`;

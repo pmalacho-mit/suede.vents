@@ -3,7 +3,13 @@ import * as vscode from "vscode";
 
 import { hasTests } from "./discovery.ts";
 import { ID, orComplain } from "./editor.ts";
-import { debugExtracted, deleteExtracted, extractTest, markdownOfExtracted, runExtracted } from "./extracted.ts";
+import {
+  debugExtracted,
+  deleteExtracted,
+  extractTest,
+  markdownOfExtracted,
+  runExtracted,
+} from "./extracted.ts";
 import { generatedViews } from "./generated.ts";
 import { extractedFileLenses, testFileLenses } from "./lenses.ts";
 import { forgetLibrary } from "./library.ts";
@@ -52,12 +58,20 @@ function testCommands({ output, tree, runner }: Parts) {
       const test = item && tree.testOf(item);
       if (item && test) await openPage(item.uri, test.snippet, test.name);
     }),
-    command("openAllPages", async (uri: vscode.Uri | undefined = activeComponent()) => {
-      if (!uri) return;
-      tree.load(uri);
-      const tests = tree.itemsOf(uri).flatMap((item) => tree.testOf(item) ?? []);
-      await openAllPages(uri, tests.filter((test) => test.generatable));
-    }),
+    command(
+      "openAllPages",
+      async (uri: vscode.Uri | undefined = activeComponent()) => {
+        if (!uri) return;
+        tree.load(uri);
+        const tests = tree
+          .itemsOf(uri)
+          .flatMap((item) => tree.testOf(item) ?? []);
+        await openAllPages(
+          uri,
+          tests.filter((test) => test.generatable),
+        );
+      },
+    ),
   ];
 }
 
@@ -73,21 +87,35 @@ function generatedCommands({ output, showAgainst }: Parts) {
       );
       if (text !== null) await showAgainst(uri, text, "what Vitest sees");
     }),
-    command("showDocumentation", async (uri: vscode.Uri | undefined = activeComponent()) => {
-      if (!uri) return;
-      const text = await orComplain(
-        printed.documentation(uri, output),
-        output,
-        `Could not document ${path.basename(uri.fsPath)}.`,
-      );
-      if (text === null) return;
-      // the markdown to copy from, and beside it in the same group, how it reads
-      const document = await vscode.workspace.openTextDocument({ language: "markdown", content: text });
-      await vscode.window.showTextDocument(document, { viewColumn: vscode.ViewColumn.Beside, preview: false });
-      await vscode.commands.executeCommand("markdown.showPreview", document.uri);
-    }),
+    command(
+      "showDocumentation",
+      async (uri: vscode.Uri | undefined = activeComponent()) => {
+        if (!uri) return;
+        const text = await orComplain(
+          printed.documentation(uri, output),
+          output,
+          `Could not document ${path.basename(uri.fsPath)}.`,
+        );
+        if (text === null) return;
+        // the markdown to copy from, and beside it in the same group, how it reads
+        const document = await vscode.workspace.openTextDocument({
+          language: "markdown",
+          content: text,
+        });
+        await vscode.window.showTextDocument(document, {
+          viewColumn: vscode.ViewColumn.Beside,
+          preview: false,
+        });
+        await vscode.commands.executeCommand(
+          "markdown.showPreview",
+          document.uri,
+        );
+      },
+    ),
     command("runExtracted", runExtracted),
-    command("markdownExtracted", (uri: vscode.Uri) => markdownOfExtracted(uri, output)),
+    command("markdownExtracted", (uri: vscode.Uri) =>
+      markdownOfExtracted(uri, output),
+    ),
     command("debugExtracted", debugExtracted),
     command("deleteExtracted", deleteExtracted),
   ];
@@ -100,19 +128,26 @@ const runProfile = (controller: vscode.TestController, runner: TestRunner) =>
     async (request) => {
       const included = request.include ?? childrenOf(controller.items);
       const files = new Set(
-        [...everyItem(included)].filter((item) => !item.children.size && item.uri).map((item) => item.uri!.toString()),
+        [...everyItem(included)]
+          .filter((item) => !item.children.size && item.uri)
+          .map((item) => item.uri!.toString()),
       );
       for (const file of files) await runner.run(vscode.Uri.parse(file));
     },
     true,
   );
 
-const autoRunEnabled = () => vscode.workspace.getConfiguration(ID).get<boolean>("autoRun", true);
+const autoRunEnabled = () =>
+  vscode.workspace.getConfiguration(ID).get<boolean>("autoRun", true);
 
 const isComponent = (document: vscode.TextDocument) =>
   document.uri.scheme === "file" && document.languageId === "svelte";
 
-function followDocuments({ tree, runner }: Parts, lensesChanged: vscode.EventEmitter<void>) {
+function followDocuments(
+  { tree, runner }: Parts,
+  lensesChanged: vscode.EventEmitter<void>,
+  rescanWarnings: () => void,
+) {
   const autoRun = (document: vscode.TextDocument) => {
     if (!isComponent(document)) return;
     const tests = tree.load(document.uri, document.getText());
@@ -129,17 +164,27 @@ function followDocuments({ tree, runner }: Parts, lensesChanged: vscode.EventEmi
       tree.load(document.uri, document.getText());
       lensesChanged.fire();
     }),
-    vscode.workspace.onDidChangeWorkspaceFolders(() => (forgetLibrary(), forgetProjects())),
-    ...followConfigs(tree),
+    vscode.workspace.onDidChangeWorkspaceFolders(
+      () => (forgetLibrary(), forgetProjects()),
+    ),
+    ...followConfigs(tree, lensesChanged, rescanWarnings),
   ];
 }
 
-// a Vite config that gains or loses the plugin moves which project its components belong to
-function followConfigs(tree: TestTree) {
+// a Vite config that gains or loses the plugin moves which project its components belong to,
+// and may bring a library whose diagnostics were not followed yet
+function followConfigs(
+  tree: TestTree,
+  lensesChanged: vscode.EventEmitter<void>,
+  rescanWarnings: () => void,
+) {
   const watcher = vscode.workspace.createFileSystemWatcher(CONFIG_GLOB);
   const changed = () => {
     forgetProjects();
-    for (const document of vscode.workspace.textDocuments) if (isComponent(document)) tree.load(document.uri);
+    for (const document of vscode.workspace.textDocuments)
+      if (isComponent(document)) tree.load(document.uri);
+    lensesChanged.fire();
+    rescanWarnings();
   };
   watcher.onDidChange(changed);
   watcher.onDidCreate(changed);
@@ -153,7 +198,13 @@ export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Sweater Vest");
   const lensesChanged = new vscode.EventEmitter<void>();
   const [views, showAgainst] = generatedViews();
-  context.subscriptions.push(controller, warnings, output, lensesChanged, views);
+  context.subscriptions.push(
+    controller,
+    warnings,
+    output,
+    lensesChanged,
+    views,
+  );
 
   const tree = testTree(controller, output);
   const runner = testRunner({ controller, output, tree, lensesChanged });
@@ -161,21 +212,33 @@ export function activate(context: vscode.ExtensionContext): void {
 
   controller.resolveHandler = async (item) => {
     if (item?.uri) return void tree.load(item.uri);
-    for (const uri of await vscode.workspace.findFiles("**/*.svelte", "**/node_modules/**"))
-      if (hasTests(await vscode.workspace.fs.readFile(uri).then((b) => Buffer.from(b).toString("utf8"))))
+    for (const uri of await vscode.workspace.findFiles(
+      "**/*.svelte",
+      "**/node_modules/**",
+    ))
+      if (
+        hasTests(
+          await vscode.workspace.fs
+            .readFile(uri)
+            .then((b) => Buffer.from(b).toString("utf8")),
+        )
+      )
         tree.load(uri);
   };
 
+  const plugin = pluginWarnings(warnings);
   context.subscriptions.push(
     runProfile(controller, runner),
     testFileLenses(tree, runner, lensesChanged),
     extractedFileLenses(),
     ...testCommands(parts),
     ...generatedCommands(parts),
-    pluginWarnings(warnings),
+    plugin,
   );
   void controller.resolveHandler(undefined);
-  context.subscriptions.push(...followDocuments(parts, lensesChanged));
+  context.subscriptions.push(
+    ...followDocuments(parts, lensesChanged, plugin.rescan),
+  );
 }
 
 export function deactivate(): void {}

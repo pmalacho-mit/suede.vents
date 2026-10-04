@@ -449,7 +449,8 @@ extracted file.
 ## Where things are written
 
 `.derived/` inside this folder holds `diagnostics.json`: what the plugin could
-not hand in, which the editor reads. It ignores itself in git; delete it freely.
+not hand in, by each component's absolute path, which the editor reads. It
+ignores itself in git; delete it freely.
 
 When the dev server runs in a container whose port is published somewhere
 else, tell the plugin where, so the editor opens pages at the published
