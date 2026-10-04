@@ -67,7 +67,7 @@ ensure_git_subrepo \
   || die "git-subrepo is not installed (https://github.com/ingydotnet/git-subrepo)"
 
 cd "$(git rev-parse --show-toplevel)" || die "not inside a git repository"
-git diff --quiet && git diff --cached --quiet \
+git diff --quiet --no-ext-diff && git diff --cached --quiet --no-ext-diff \
   || die "you have uncommitted changes - git subrepo pull refuses a dirty tree"
 
 # One spelling for one repository, so ssh and https forms of the library - and
@@ -91,7 +91,7 @@ remote_of() { git config -f "$1/.gitrepo" --get subrepo.remote 2>/dev/null || tr
 # `.suede/core` and a `.github/workflows` of its own, each a subrepo of this
 # same library. A scan finds those too, and pulling one edits a vendored
 # dependency - which then no longer matches the commit its `.gitrepo` names, so
-# `suede diff` calls the pointer dishonest and `push-release.sh` refuses to
+# `diff.sh` calls the pointer dishonest and `push-release.sh` refuses to
 # publish. What suede owns here is a fixed, short list.
 library_subrepos() {
   local directory
