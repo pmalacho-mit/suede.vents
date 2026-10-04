@@ -1,270 +1,368 @@
-import type { Expand } from "./utils";
+import type {
+  Call,
+  Construct,
+  Expect,
+  Given,
+  Invoke,
+  Throws,
+} from "../suede.nests.vents/dsl.import.meta.vitest.ts";
+import type {
+  bus,
+  busCollection,
+  children,
+  idsOf,
+  Point,
+  reassignHandle,
+  recorder,
+  selfRemoving,
+  subscribingDuringDispatch,
+  tornDownThrough,
+  unsubscribingDuringDispatch,
+} from "./_internal/harness.ts";
 
-type PayloadsConstraint = Record<string | number, any[]>;
+/**
+ * An event map is an interface (or type alias) whose keys are event names and
+ * whose values are the payload tuples for that event.
+ *
+ * The self-referential constraint (`E extends EventMapOf<E>`) is deliberate:
+ * `E extends Record<string, unknown[]>` would reject `interface`s, since
+ * interfaces don't get implicit index signatures.
+ */
+export type EventMapOf<E> = { [K in keyof E]: unknown[] };
 
-export type PayloadsToEvents<T extends PayloadsConstraint, Target> = {
-  [k in keyof T]: (...payload: [...T[k], target: Target]) => void;
-};
+type PayloadOf<E, K extends keyof E> = Extract<E[K], unknown[]>;
 
-export type PayloadsToCollectionEvents<T extends PayloadsConstraint, Target> = {
-  [k in keyof T]: (
-    ...payload: [...T[k], target: Target, index: number]
-  ) => void;
-};
+/** Extra arguments appended after the payload. `[]`, `[target]`, or `[target, index]`. */
+type Tail = unknown[];
 
-type Unsubscriber = (unsubscribe: () => void) => void;
+export type TargetTail<Target> = [Target] extends [void]
+  ? []
+  : [target: Target];
 
-export class WithEvents<Payloads extends PayloadsConstraint> {
-  private readonly listeners = new Map<
-    keyof Payloads,
-    Set<(...payload: any) => void>
-  >();
-
-  /**
-   * Subscribes to one or more events.
-   * Returns an unsubscribe function for unsubscribing all events, with extra properties for unsubscribing individual event keys.
-   * @param callbacks
-   * @param unsubscriber - A callback that will be provided with the unsubscribe function for unsubscribing all events.
-   * (Useful for things like svelte's `onDestroy` or other methods invoked on cleanup)
-   * @returns {Function & Record<string, Function>}
-   */
-  subscribe<T extends Expand<Partial<PayloadsToEvents<Payloads, typeof this>>>>(
-    callbacks: T,
-    unsubscriber?: Unsubscriber
-  ) {
-    const unsubscribers = {} as { [key in keyof T]: () => void };
-
-    type Events = PayloadsToEvents<Payloads, typeof this>;
-    for (const key in callbacks)
-      unsubscribers[key] = this.subscribeKey(
-        key,
-        callbacks[key] as Events[keyof Events]
-      );
-
-    const unsubscribeAll = () => {
-      for (const key in callbacks) unsubscribers[key as keyof T]?.();
-    };
-
-    unsubscriber?.(unsubscribeAll);
-
-    return Object.assign(unsubscribeAll, unsubscribers);
-  }
-
-  /**
-   * Subscribes to one or more events that will be automatically unsubscribed after the first occurrence.
-   * Each event callback will only be invoked once, then automatically unsubscribed.
-   * @param callbacks - An object mapping event names to callback functions
-   * @param unsubscriber - A callback that will be provided with the unsubscribe function for manually unsubscribing all events before they fire
-   * @returns An unsubscribe function for unsubscribing all events, with extra properties for unsubscribing individual event keys
-   * @example
-   * ```ts
-   * instance.once({
-   *   ready: () => console.log('Ready event fired once')
-   * });
-   * ```
-   */
-  once<T extends Expand<Partial<PayloadsToEvents<Payloads, typeof this>>>>(
-    callbacks: T,
-    unsubscriber?: (unsubscribe: () => void) => void
-  ) {
-    let unsubscribe: ReturnType<typeof this.subscribe<T>>;
-    const wrappedCallbacks = {} as T;
-    for (const key in callbacks) {
-      const callback = callbacks[key] as (...payload: any[]) => void;
-      const wrapped = (...payload: Parameters<typeof callback>) => {
-        callback(...payload);
-        unsubscribe[key]();
-      };
-      wrappedCallbacks[key as keyof T] = wrapped as T[keyof T];
-    }
-    unsubscribe = this.subscribe(wrappedCallbacks, unsubscriber);
-    return unsubscribe;
-  }
-
-  /**
-   * Creates a subscription helper that will automatically unsubscribe when a specific event fires.
-   * Useful for subscribing to events that should only be active until a certain condition occurs.
-   * @param event - The event name that, when fired, will trigger unsubscription
-   * @returns An object with a `subscribe` method that accepts callbacks and auto-unsubscribes when the specified event fires
-   * @example
-   * ```ts
-   * // Subscribe to 'data' events until 'complete' fires
-   * instance.until('complete').subscribe({
-   *   data: (value) => console.log('Data:', value)
-   * });
-   * ```
-   */
-  until<Event extends keyof Payloads>(event: Event) {
-    const subscribe = <
-      T extends Expand<Partial<PayloadsToEvents<Payloads, typeof this>>>
-    >(
-      callbacks: T
-    ) => {
-      const unsubscribe = this.subscribe(callbacks);
-      const onEvent = { [event]: unsubscribe };
-      return this.once(onEvent as T);
-    };
-    return { subscribe };
-  }
-
-  /**
-   * Fires an event, invoking all registered listeners for that event.
-   * The event instance is automatically appended as the last argument to each listener.
-   * @param event - The name of the event to fire
-   * @param payload - The arguments to pass to the event listeners
-   * @example
-   * ```ts
-   * instance.fire('dataChanged', newValue, oldValue);
-   * ```
-   */
-  fire<Event extends keyof Payloads>(
-    event: Event,
-    ...payload: Payloads[Event]
-  ) {
-    this.listeners
-      .get(event)
-      ?.forEach((callback) => callback(...payload, this));
-  }
-
-  /**
-   * Returns the number of listeners registered for a specific event.
-   * @param event - The event name to check
-   * @returns The number of active listeners for the event, or 0 if none exist
-   */
-  listenerCount(event: keyof Payloads) {
-    return this.listeners.get(event)?.size ?? 0;
-  }
-
-  /**
-   * Returns an object containing listener counts for all registered events.
-   * Each property is a getter that returns the current count for that event.
-   * @returns An object mapping event names to their listener counts
-   */
-  get listenerCounts() {
-    type Counts = Record<keyof Payloads, number>;
-    let counts: Partial<Counts> = {};
-    for (const [event, listeners] of this.listeners)
-      counts = {
-        ...counts,
-        get [event]() {
-          return listeners.size;
-        },
-      };
-    return counts as Counts;
-  }
-
-  clear() {
-    this.listeners.forEach((set) => set.clear());
-    this.listeners.clear();
-  }
-
-  /**
-   * Creates a collection-level event handler for multiple WithEvents instances.
-   * Allows subscribing to events from all instances in the collection, with callbacks receiving the target instance and index.
-   * @param withEvents - An array of WithEvents instances to collect
-   * @returns An object with `fire` and `subscribe` methods that operate on all instances in the collection
-   * @example
-   * ```ts
-   * const instances = [instance1, instance2, instance3];
-   * const collection = WithEvents.Collect(instances);
-   *
-   * collection.subscribe({
-   *   change: (value, target, index) => {
-   *     console.log(`Instance ${index} changed:`, value);
-   *   }
-   * });
-   *
-   * // Fire event on all instances
-   * collection.fire('change', newValue);
-   * ```
-   */
-  static Collect = <const T extends WithEvents<PayloadsConstraint>>(
-    withEvents: T[]
-  ) => {
-    type IndividualPayloads = ExtractPayloads<T>;
-    type CollectionEvents = {
-      [k in keyof IndividualPayloads]: (
-        ...payload: [...IndividualPayloads[k], target: T, index: number]
-      ) => void;
-    };
-
-    return {
-      fire: ((event, ...payload) => {
-        for (let index = 0; index < withEvents.length; index++)
-          withEvents[index].fire(event, ...payload);
-      }) satisfies T["fire"],
-      subscribe: <Callbacks extends Expand<Partial<CollectionEvents>>>(
-        callbacks: Callbacks,
-        unsubscriber?: Unsubscriber
-      ) => {
-        type CallbackKey = keyof typeof callbacks;
-
-        const keys = Object.keys(callbacks) as CallbackKey[];
-        const unsubscribers = keys.reduce((acc, key) => {
-          acc[key] = [];
-          return acc;
-        }, {} as { [key in CallbackKey]: (() => void)[] });
-
-        for (let index = 0; index < withEvents.length; index++) {
-          const target = withEvents[index];
-          for (const key of keys) {
-            const callback = callbacks[key] as (...args: any[]) => void;
-            unsubscribers[key].push(
-              (target as any as WithEvents<any>).subscribeKey(key, (...args) =>
-                callback(...args, index)
-              )
-            );
-          }
-        }
-
-        const ubsubscribeKey = (key: CallbackKey) => {
-          for (let index = 0; index < unsubscribers[key].length; index++)
-            unsubscribers[key][index]();
-        };
-
-        const unsubscribeAll = () => {
-          for (const key of keys) ubsubscribeKey(key);
-        };
-
-        unsubscriber?.(unsubscribeAll);
-
-        return Object.assign(
-          unsubscribeAll,
-          keys.reduce((acc, key) => {
-            acc[key as CallbackKey] = () => ubsubscribeKey(key);
-            return acc;
-          }, {} as Record<CallbackKey, () => void>)
-        );
-      },
-    };
-  };
-
-  private subscribeKey<K extends keyof Payloads>(
-    event: K,
-    callback: PayloadsToEvents<Payloads, typeof this>[K]
-  ) {
-    this.listeners.get(event)?.add(callback) ??
-      this.listeners.set(event, new Set([callback]));
-
-    return () => {
-      this.listeners.get(event)?.delete(callback);
-    };
-  }
+/** A single event: subscribe, or dispatch. Shared by models and collections. */
+export interface Handle<E, K extends keyof E, T extends Tail> {
+  (listener: (...args: [...PayloadOf<E, K>, ...T]) => void): Subscribed<E, T>;
+  once(
+    listener: (...args: [...PayloadOf<E, K>, ...T]) => void,
+  ): Subscribed<E, T>;
+  fire(...payload: PayloadOf<E, K>): void;
+  /** Drops every listener for this event, including the model's own. */
+  clear(): void;
+  readonly listenerCount: number;
 }
 
-export type IWithEvents<Payloads extends PayloadsConstraint> = Pick<
-  WithEvents<Payloads>,
-  keyof WithEvents<Payloads>
+/** The same event reached through a chain: add another listener, or drop this chain's. */
+export interface SubscribedHandle<E, K extends keyof E, T extends Tail> {
+  (listener: (...args: [...PayloadOf<E, K>, ...T]) => void): Subscribed<E, T>;
+  (): Subscribed<E, T>;
+  once(
+    listener: (...args: [...PayloadOf<E, K>, ...T]) => void,
+  ): Subscribed<E, T>;
+}
+
+/**
+ * Callable (unsubscribes everything in the chain) and indexable by event name
+ * (adds another listener, or unsubscribes just that event).
+ */
+export type Subscribed<E, T extends Tail> = (() => void) & {
+  readonly [K in keyof E]: SubscribedHandle<E, K, T>;
+};
+
+/** Type-only marker carrying the event map and target through to `collect`. */
+export declare const eventMap: unique symbol;
+
+/**
+ * Homomorphic mapped type over `E`. This is the part that makes
+ * "go to definition" / "find all references" work: TypeScript keeps a link
+ * from each mapped property back to the declaration in `E`.
+ */
+export type EventHandles<E, Target, T extends Tail> = {
+  readonly [K in keyof E]: Handle<E, K, T>;
+} & { readonly [eventMap]?: [map: E, target: Target] };
+
+export type Events<E extends EventMapOf<E>, Target = void> = EventHandles<
+  E,
+  Target,
+  TargetTail<Target>
 >;
 
-export type ExtractPayloads<T> = T extends IWithEvents<PayloadsConstraint>
-  ? Parameters<T["fire"]> extends [infer key extends string, ...any[]]
-    ? {
-        [k in key]: Required<Parameters<T["subscribe"]>[0]>[k] extends (
-          ...args: [...infer P, target: T]
-        ) => void
-          ? P
-          : never;
-      }
-    : never
-  : never;
+export type Subscription<E extends EventMapOf<E>, Target = void> = Subscribed<
+  E,
+  TargetTail<Target>
+>;
+
+// ---------------------------------------------------------------------------
+// runtime
+// ---------------------------------------------------------------------------
+
+type AnyListener = (...args: any[]) => void;
+
+/**
+ * Where listeners live. One implementation over a local Map (a model), one
+ * that fans out across members (a collection); everything else is shared.
+ */
+interface Source {
+  bind(key: string, listener: AnyListener): () => void;
+  fire(key: string, payload: unknown[]): void;
+  count(key: string): number;
+  clear(key: string): void;
+}
+
+/**
+ * A subscription chain is a function, and callers invoke teardowns through
+ * these (Svelte runs `$effect` cleanup as `teardown.call(null)`), so on a
+ * chain they can't be event names.
+ */
+const invokers = new Set<string | symbol>(["call", "apply", "bind"]);
+
+/**
+ * Lazily builds and caches one handle per event name. Symbols read through,
+ * as do a function base's invokers.
+ */
+const handles = <T extends object>(
+  create: (key: string) => unknown,
+  base: T,
+) => {
+  const cache = new Map<string, unknown>();
+  const callable = typeof base === "function";
+  return new Proxy(base, {
+    get(target, key, receiver) {
+      if (typeof key === "symbol" || (callable && invokers.has(key)))
+        return Reflect.get(target, key, receiver);
+      let handle = cache.get(key);
+      if (!handle) cache.set(key, (handle = create(key)));
+      return handle;
+    },
+    set: () => false,
+  });
+};
+
+const createChain = (source: Source): any => {
+  const owned = new Map<string, (() => void)[]>();
+
+  const off = (key: string) => {
+    const unbinds = owned.get(key);
+    if (!unbinds) return;
+    owned.delete(key);
+    for (const unbind of unbinds) unbind();
+  };
+
+  const on = (key: string, listener: AnyListener) => {
+    const unbind = source.bind(key, listener);
+    owned.get(key)?.push(unbind) ?? owned.set(key, [unbind]);
+    return unbind;
+  };
+
+  const chain: any = handles(
+    (key) => {
+      const handle = (listener?: AnyListener) => (
+        listener ? on(key, listener) : off(key),
+        chain
+      );
+      handle.once = (listener: AnyListener) => {
+        let unbind!: () => void;
+        unbind = on(key, (...args: unknown[]) => (unbind(), listener(...args)));
+        return chain;
+      };
+      return handle;
+    },
+    () => {
+      for (const key of [...owned.keys()]) off(key);
+    },
+  );
+
+  return chain;
+};
+
+export const createHandles = (source: Source) =>
+  handles((key) => {
+    const handle = (listener: AnyListener) =>
+      createChain(source)[key](listener);
+    handle.once = (listener: AnyListener) =>
+      createChain(source)[key].once(listener);
+    handle.fire = (...payload: unknown[]) => source.fire(key, payload);
+    handle.clear = () => source.clear(key);
+    Object.defineProperty(handle, "listenerCount", {
+      get: () => source.count(key),
+    });
+    return handle;
+  }, Object.create(null));
+
+export function createEvents<E extends EventMapOf<E>>(): Events<E>;
+export function createEvents<E extends EventMapOf<E>, Target>(
+  target: Target,
+): Events<E, Target>;
+export function createEvents<E extends EventMapOf<E>, Target>(
+  ...args: [] | [Target]
+): Events<E, Target> {
+  const store = new Map<string, Set<AnyListener>>();
+  const hasTarget = args.length > 0;
+  const target = args[0];
+
+  return createHandles({
+    bind(key, listener) {
+      const listeners = store.get(key);
+      if (listeners) listeners.add(listener);
+      else store.set(key, new Set([listener]));
+
+      return () => {
+        const current = store.get(key);
+        if (current?.delete(listener) && current.size === 0) store.delete(key);
+      };
+    },
+    fire(key, payload) {
+      const listeners = store.get(key);
+      if (!listeners) return;
+      const full = hasTarget ? [...payload, target] : payload;
+      // Snapshot: listeners may subscribe or unsubscribe during dispatch.
+      for (const listener of [...listeners]) listener(...full);
+    },
+    count: (key) => store.get(key)?.size ?? 0,
+    clear: (key) => void store.delete(key),
+  }) as Events<E, Target>;
+}
+
+declare namespace createEvents {
+  type Bus = Invoke<typeof bus>;
+  type Model = Construct<typeof Point>;
+  type Heard = Invoke<typeof recorder>;
+  type Other = Invoke<typeof recorder>;
+
+  /** a standalone bus hands listeners the payload, and nothing after it */
+  export type PayloadOnly = Given<
+    [
+      Invoke<Bus["moved"], [listener: Heard["listener"]]>,
+      Call<Bus["moved"], "fire", [x: 1, y: 2]>,
+    ],
+    Expect<Heard["calls"], "=", [[1, 2]]>
+  >;
+
+  /** a model's bus appends the model after the payload */
+  export type AppendsTarget = Given<
+    [
+      Invoke<Model["events"]["renamed"], [listener: Heard["listener"]]>,
+      Call<Model["events"]["renamed"], "fire", [name: "b", previous: "a"]>,
+    ],
+    Expect<Heard["calls"], "=", [["b", "a", Model]]>
+  >;
+
+  /** listeners run in the order they subscribed, so the model's own state settles first */
+  export type ModelSettlesFirst = Given<
+    Call<Model["events"]["moved"], "fire", [x: 3, y: 4]>,
+    [Expect<Model["x"], "=", 3>, Expect<Model["y"], "=", 4>]
+  >;
+
+  /** firing an event nobody listens to does nothing */
+  export type NoListeners = Expect<Call<Bus["reset"], "fire">, "=", undefined>;
+
+  /** the listener count includes the model's own listener */
+  export type CountsOwnListener = Expect<
+    Model["events"]["moved"]["listenerCount"],
+    "=",
+    1
+  >;
+
+  /** a handle is created once and handed back every time */
+  export type StableHandles = Expect<Bus["moved"], "is", Bus["moved"]>;
+
+  /** handles can't be assigned over */
+  export type ReadOnly = Throws<Invoke<typeof reassignHandle>, TypeError>;
+
+  /** a listener subscribed during dispatch waits for the next fire */
+  export type SubscribeDuringDispatch = Expect<
+    Invoke<typeof subscribingDuringDispatch>,
+    "=",
+    ["outer"]
+  >;
+
+  /** a listener can unsubscribe itself mid-dispatch without skipping the next one */
+  export type UnsubscribeDuringDispatch = Expect<
+    Invoke<typeof unsubscribingDuringDispatch>,
+    "=",
+    ["self", "next", "next"]
+  >;
+
+  /** `clear` drops every listener of one event, the model's own included */
+  export type Clear = Given<
+    Call<Model["events"]["moved"], "clear">,
+    [
+      Expect<Model["events"]["moved"]["listenerCount"], "=", 0>,
+      Expect<Model["events"]["renamed"]["listenerCount"], "=", 1>,
+    ]
+  >;
+
+  type Chain = Invoke<
+    Invoke<Bus["moved"], [listener: Heard["listener"]]>["reset"],
+    [listener: Heard["listener"]]
+  >;
+
+  /** a subscription chains on to other events, and calling it drops them all */
+  export type ChainUnsubscribesAll = Given<
+    [
+      Invoke<Chain>,
+      Call<Bus["moved"], "fire", [x: 1, y: 1]>,
+      Call<Bus["reset"], "fire">,
+    ],
+    [
+      Expect<Heard["calls"], "isEmpty">,
+      Expect<Bus["moved"]["listenerCount"], "=", 0>,
+      Expect<Bus["reset"]["listenerCount"], "=", 0>,
+    ]
+  >;
+
+  /** calling one event of a chain with no listener drops just that event */
+  export type ChainUnsubscribesOne = Given<
+    [
+      Invoke<Chain["moved"]>,
+      Call<Bus["moved"], "fire", [x: 1, y: 1]>,
+      Call<Bus["reset"], "fire">,
+    ],
+    Expect<Heard["calls"], "=", [[]]>
+  >;
+
+  type Mine = Invoke<Bus["reset"], [listener: Heard["listener"]]>;
+
+  /** a subscription only drops its own listeners */
+  export type OnlyOwnListeners = Given<
+    [
+      Invoke<Bus["reset"], [listener: Other["listener"]]>,
+      Invoke<Mine>,
+      Call<Bus["reset"], "fire">,
+    ],
+    [Expect<Heard["calls"], "isEmpty">, Expect<Other["calls"], "=", [[]]>]
+  >;
+
+  /** a subscription is safe to call twice */
+  export type UnsubscribeTwice = Given<
+    [Invoke<Mine>, Invoke<Mine>],
+    Expect<Bus["reset"]["listenerCount"], "=", 0>
+  >;
+
+  /** a subscription tears down however a framework invokes it (Svelte uses `.call`) */
+  export type FrameworkTeardown = [
+    Expect<Invoke<typeof tornDownThrough, [how: "call"]>, "=", 0>,
+    Expect<Invoke<typeof tornDownThrough, [how: "apply"]>, "=", 0>,
+    Expect<Invoke<typeof tornDownThrough, [how: "bind"]>, "=", 0>,
+  ];
+
+  /** `once` hears one fire, then drops itself */
+  export type Once = Given<
+    [
+      Call<Bus["moved"], "once", [listener: Heard["listener"]]>,
+      Call<Bus["moved"], "fire", [x: 1, y: 0]>,
+      Call<Bus["moved"], "fire", [x: 2, y: 0]>,
+    ],
+    [
+      Expect<Heard["calls"], "=", [[1, 0]]>,
+      Expect<Bus["moved"]["listenerCount"], "=", 0>,
+    ]
+  >;
+
+  type Pending = Call<Bus["moved"], "once", [listener: Heard["listener"]]>;
+
+  /** a pending `once` can be cancelled before it fires */
+  export type OnceCancelled = Given<
+    [Invoke<Pending>, Call<Bus["moved"], "fire", [x: 1, y: 0]>],
+    Expect<Heard["calls"], "isEmpty">
+  >;
+}
