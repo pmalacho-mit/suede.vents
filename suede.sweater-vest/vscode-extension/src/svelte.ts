@@ -30,6 +30,9 @@ export function parseWithCompilerOf(dir: string): boolean {
 
 export const parse = ((...args: unknown[]) => {
   const compiler = compilerOf(from);
-  if (!compiler) throw new Error(`sweater-vest: no Svelte compiler to parse with from ${from}`);
+  if (!compiler)
+    throw new Error(
+      `sweater-vest: no Svelte compiler to parse with from ${from}`,
+    );
   return (compiler.parse as (...a: unknown[]) => unknown)(...args);
 }) as typeof Compiler.parse;

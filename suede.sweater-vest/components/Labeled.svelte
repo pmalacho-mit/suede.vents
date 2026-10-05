@@ -4,7 +4,11 @@
   import type Self from "./Labeled.svelte";
   import type { Test, Widen, Sweater } from "../dsl.import.meta.vitest";
 
-  let { label, children, below = false }: { label: string; children: Snippet; below?: boolean } = $props();
+  let {
+    label,
+    children,
+    below = false,
+  }: { label: string; children: Snippet; below?: boolean } = $props();
 </script>
 
 <figure class="labeled" class:below>
@@ -15,8 +19,10 @@
 <!-- a caption over each variant, above by default or below -->
 {#snippet usage(Labeled: typeof Self, Row: typeof Sweater.Row)}
   <Row>
-    <Labeled label="size=small"><span style="font-size: 12px">Aa</span></Labeled>
-    <Labeled label="size=large"><span style="font-size: 24px">Aa</span></Labeled>
+    <Labeled label="size=small"><span style="font-size: 12px">Aa</span></Labeled
+    >
+    <Labeled label="size=large"><span style="font-size: 24px">Aa</span></Labeled
+    >
     <Labeled label="caption below" below><span>Aa</span></Labeled>
   </Row>
 {/snippet}
@@ -47,7 +53,9 @@
   test: Test,
 )}
   <Status {test} />
-  <Labeled label={pocket.label} below={pocket.below}><span>variant</span></Labeled>
+  <Labeled label={pocket.label} below={pocket.below}
+    ><span>variant</span></Labeled
+  >
   {test(async ({ expect, screen, flushSync }) => {
     const figure = screen.getByRole("figure");
     expect(figure.classList.contains("below")).toBe(true);
@@ -72,7 +80,12 @@
   <Row gap="0.5rem" align="end">
     {#each [8, 16, 24] as size (size)}
       <Labeled label="size={size}">
-        <span style:display="inline-block" style:width="{size}px" style:height="{size}px" style:background="#888"></span>
+        <span
+          style:display="inline-block"
+          style:width="{size}px"
+          style:height="{size}px"
+          style:background="#888"
+        ></span>
       </Labeled>
     {/each}
   </Row>
@@ -81,13 +94,27 @@
     expect(figures).toHaveLength(3);
     for (const [i, size] of [8, 16, 24].entries()) {
       expect(figures[i].firstElementChild?.textContent).toBe(`size=${size}`);
-      expect(figures[i].lastElementChild?.querySelector("span")?.style.width).toBe(`${size}px`);
+      expect(
+        figures[i].lastElementChild?.querySelector("span")?.style.width,
+      ).toBe(`${size}px`);
     }
   })}
 {/snippet}
 
 <style>
-  .labeled { display: inline-flex; flex-direction: column; gap: 0.3rem; margin: 0; }
-  .below { flex-direction: column-reverse; }
-  figcaption { font: 12px/1.2 ui-monospace, monospace; color: #666; }
+  .labeled {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin: 0;
+  }
+  .below {
+    flex-direction: column-reverse;
+  }
+  figcaption {
+    font:
+      12px/1.2 ui-monospace,
+      monospace;
+    color: #666;
+  }
 </style>

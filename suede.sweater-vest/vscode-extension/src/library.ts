@@ -5,14 +5,17 @@ export type Library = { root: string; cli: string; derived: string };
 
 const SKIPPED = new Set(["node_modules", "dist", "out", "coverage", "build"]);
 
-const isSearchable = (entry: fs.Dirent) => !entry.name.startsWith(".") && !SKIPPED.has(entry.name);
+const isSearchable = (entry: fs.Dirent) =>
+  !entry.name.startsWith(".") && !SKIPPED.has(entry.name);
 
 // wherever the library is installed, the DSL keeps its name, the command line sits beside it,
 // and `runtimes/common.svelte.ts` tells it apart from namespace-tests, whose DSL shares the name
 export const isLibrary = (dir: string) =>
-  ["dsl.import.meta.vitest.ts", "cli.ts", path.join("runtimes", "common.svelte.ts")].every((file) =>
-    fs.existsSync(path.join(dir, file)),
-  );
+  [
+    "dsl.import.meta.vitest.ts",
+    "cli.ts",
+    path.join("runtimes", "common.svelte.ts"),
+  ].every((file) => fs.existsSync(path.join(dir, file)));
 
 export const libraryAt = (root: string): Library => ({
   root,
@@ -33,12 +36,14 @@ function* breadthFirst(folder: string): Generator<string> {
   for (let dir = queue.shift(); dir !== undefined; dir = queue.shift()) {
     yield dir;
     for (const entry of entriesOf(dir))
-      if (entry.isDirectory() && isSearchable(entry)) queue.push(path.join(dir, entry.name));
+      if (entry.isDirectory() && isSearchable(entry))
+        queue.push(path.join(dir, entry.name));
   }
 }
 
 const locate = (folder: string) => {
-  for (const dir of breadthFirst(folder)) if (isLibrary(dir)) return libraryAt(dir);
+  for (const dir of breadthFirst(folder))
+    if (isLibrary(dir)) return libraryAt(dir);
   return null;
 };
 

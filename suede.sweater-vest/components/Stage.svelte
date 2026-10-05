@@ -36,7 +36,9 @@
 {#snippet phone(Stage: typeof Self)}
   <Stage width={180} height={320} checkered>
     <span style="position: absolute; top: 8px; left: 8px;">top left</span>
-    <span style="position: absolute; bottom: 8px; right: 8px;">bottom right</span>
+    <span style="position: absolute; bottom: 8px; right: 8px;"
+      >bottom right</span
+    >
   </Stage>
 {/snippet}
 
@@ -116,14 +118,22 @@
 {/snippet}
 
 <style>
-  .stage { position: relative; box-sizing: border-box; border: 1px solid #ddd; background: white; }
+  .stage {
+    position: relative;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    background: white;
+  }
   .checkered {
-    background-image:
-      linear-gradient(45deg, #eee 25%, transparent 25%),
+    background-image: linear-gradient(45deg, #eee 25%, transparent 25%),
       linear-gradient(-45deg, #eee 25%, transparent 25%),
       linear-gradient(45deg, transparent 75%, #eee 75%),
       linear-gradient(-45deg, transparent 75%, #eee 75%);
     background-size: 16px 16px;
-    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    background-position:
+      0 0,
+      0 8px,
+      8px -8px,
+      -8px 0;
   }
 </style>

@@ -9,7 +9,8 @@
   let tests = $state<VestEntry[]>([]);
   onMount(async () => (tests = await fetchTests()));
 
-  const keyOf = () => decodeURIComponent(location.hash.replace(/^#\/?/, "")).replace(/\/$/, "");
+  const keyOf = () =>
+    decodeURIComponent(location.hash.replace(/^#\/?/, "")).replace(/\/$/, "");
 
   let key = $state(keyOf());
   const entry = $derived(tests.find((t) => t.key === key) ?? null);
@@ -36,5 +37,8 @@
 {/if}
 
 <style>
-  nav { font-family: system-ui, sans-serif; padding: 0.5rem 1rem 0; }
+  nav {
+    font-family: system-ui, sans-serif;
+    padding: 0.5rem 1rem 0;
+  }
 </style>

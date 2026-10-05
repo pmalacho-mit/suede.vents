@@ -6,7 +6,12 @@ import type * as vscode from "vscode";
 import { folderOf } from "./editor.ts";
 import { exec } from "./process.ts";
 
-export type Assertion = { title: string; fullName?: string; status: string; failureMessages?: string[] };
+export type Assertion = {
+  title: string;
+  fullName?: string;
+  status: string;
+  failureMessages?: string[];
+};
 
 export type Report = { assertions: Assertion[] };
 
@@ -18,14 +23,22 @@ const assertionsIn = (file: string): Assertion[] => {
 };
 
 const temporaryReport = () =>
-  path.join(os.tmpdir(), `sweater-vest-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  path.join(
+    os.tmpdir(),
+    `sweater-vest-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+  );
 
-const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegExp = (text: string) =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** `-t` takes a pattern: the name, as a pattern that matches only it */
 export const testFilter = (name: string) => `^${escapeRegExp(name)}$`;
 
-export async function vitest(uri: vscode.Uri, only: string | undefined, output: vscode.OutputChannel): Promise<Report> {
+export async function vitest(
+  uri: vscode.Uri,
+  only: string | undefined,
+  output: vscode.OutputChannel,
+): Promise<Report> {
   const cwd = folderOf(uri);
   const outputFile = temporaryReport();
   const args = [

@@ -22,7 +22,9 @@ export function generatedSourceMap(
   const count = lastSourceLine - firstSourceLine + 1;
   const lines: SourceMapSegment[][] = code.split("\n").map((_, line) => {
     const offset = line - copied.generatedLine;
-    return offset >= 0 && offset < count ? [[0, 0, firstSourceLine + offset, 0]] : [];
+    return offset >= 0 && offset < count
+      ? [[0, 0, firstSourceLine + offset, 0]]
+      : [];
   });
   return {
     version: 3 as const,

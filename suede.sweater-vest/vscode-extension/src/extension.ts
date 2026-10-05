@@ -143,21 +143,53 @@ const autoRunEnabled = () =>
 const isComponent = (document: vscode.TextDocument) =>
   document.uri.scheme === "file" && document.languageId === "svelte";
 
+/** Every component open in an editor tab, as URI strings. */
+const componentsInTabs = () =>
+  new Set(
+    vscode.window.tabGroups.all.flatMap((group) =>
+      group.tabs.flatMap(({ input }) =>
+        input instanceof vscode.TabInputText &&
+        input.uri.scheme === "file" &&
+        input.uri.fsPath.endsWith(".svelte")
+          ? [input.uri.toString()]
+          : [],
+      ),
+    ),
+  );
+
 function followDocuments(
   { tree, runner }: Parts,
   lensesChanged: vscode.EventEmitter<void>,
   rescanWarnings: () => void,
 ) {
-  const autoRun = (document: vscode.TextDocument) => {
-    if (!isComponent(document)) return;
-    const tests = tree.load(document.uri, document.getText());
-    if (tests.length && autoRunEnabled()) void runner.run(document.uri);
+  const autoRun = (uri: vscode.Uri, text?: string) => {
+    const tests = tree.load(uri, text);
+    if (tests.length && autoRunEnabled()) void runner.run(uri);
+  };
+  const load = (document: vscode.TextDocument) => {
+    if (isComponent(document)) tree.load(document.uri, document.getText());
   };
 
-  for (const document of vscode.workspace.textDocuments) autoRun(document);
+  // runs are for components in a tab, the ones the user is looking at: one an extension loads
+  // without showing it (a formatter saving a batch, say) is listed, but not run
+  let shown = componentsInTabs();
+  for (const document of vscode.workspace.textDocuments) load(document);
+  for (const uri of shown) autoRun(vscode.Uri.parse(uri));
   return [
-    vscode.workspace.onDidOpenTextDocument(autoRun),
-    vscode.workspace.onDidSaveTextDocument(autoRun),
+    // a component that gains a tab; moving one, or a second tab of it, is not a new one
+    vscode.window.tabGroups.onDidChangeTabs(() => {
+      const now = componentsInTabs();
+      for (const uri of now)
+        if (!shown.has(uri)) autoRun(vscode.Uri.parse(uri));
+      shown = now;
+    }),
+    vscode.workspace.onDidOpenTextDocument(load),
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      if (!isComponent(document)) return;
+      if (shown.has(document.uri.toString()))
+        autoRun(document.uri, document.getText());
+      else load(document);
+    }),
     // an edit moves the tests, but does not change what they last did
     vscode.workspace.onDidChangeTextDocument(({ document }) => {
       if (!isComponent(document)) return;

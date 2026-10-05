@@ -6,7 +6,10 @@
   import type Self from "./Theme.svelte";
   import type { Test, Widen, Sweater } from "../dsl.import.meta.vitest";
 
-  let { scheme = "light", children }: { scheme?: "light" | "dark"; children: Snippet } = $props();
+  let {
+    scheme = "light",
+    children,
+  }: { scheme?: "light" | "dark"; children: Snippet } = $props();
 </script>
 
 <div class="theme" data-theme={scheme} style:color-scheme={scheme}>
@@ -22,7 +25,11 @@
 {/snippet}
 
 <!-- no scheme: light, with the children inside -->
-{#snippet defaults(Theme: typeof Self, Status: typeof Sweater.Status, test: Test)}
+{#snippet defaults(
+  Theme: typeof Self,
+  Status: typeof Sweater.Status,
+  test: Test,
+)}
   <Status {test} />
   <Theme><span>default</span></Theme>
   {test(async ({ expect, screen }) => {
@@ -57,6 +64,14 @@
 {/snippet}
 
 <style>
-  .theme { display: inline-block; padding: 1rem; background: white; color: #111; }
-  .theme[data-theme="dark"] { background: #1b1b1f; color: #eee; }
+  .theme {
+    display: inline-block;
+    padding: 1rem;
+    background: white;
+    color: #111;
+  }
+  .theme[data-theme="dark"] {
+    background: #1b1b1f;
+    color: #eee;
+  }
 </style>

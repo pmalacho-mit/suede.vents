@@ -125,7 +125,7 @@
         "sweater-vest.autoRun": {
           "type": "boolean",
           "default": true,
-          "description": "Run a component's tests when it is opened or saved."
+          "description": "Run a component's tests when it is opened in a tab, or saved while open in one. A component another extension loads without a tab (a formatter, say) is listed but not run."
         },
         "sweater-vest.devServer": {
           "type": "string",

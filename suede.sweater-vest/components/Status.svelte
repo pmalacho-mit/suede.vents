@@ -47,15 +47,16 @@
     quiet.test(({ note }) => note("kept, shown once asked"));
     await quiet.run();
     await tick();
-    expect([...own.querySelectorAll("li")].map((li) => li.textContent)).toEqual([
-      "clicked twice",
-      "then reset",
-    ]);
+    expect([...own.querySelectorAll("li")].map((li) => li.textContent)).toEqual(
+      ["clicked twice", "then reset"],
+    );
     expect(quiet.test.notes).toEqual(["kept, shown once asked"]);
     expect(muted.querySelector("ol")).toBeNull();
     pocket.notes = true;
     flushSync();
-    expect(muted.querySelector("li")?.textContent).toBe("kept, shown once asked");
+    expect(muted.querySelector("li")?.textContent).toBe(
+      "kept, shown once asked",
+    );
   })}
 {/snippet}
 
@@ -97,7 +98,9 @@
     grid-template-columns: auto 1fr auto;
     gap: 0.25rem 0.5rem;
     align-items: center;
-    font: 13px/1.4 system-ui, sans-serif;
+    font:
+      13px/1.4 system-ui,
+      sans-serif;
     padding: 0.4rem 0.6rem;
     border: 1px solid #ddd;
     border-radius: 6px;
@@ -110,11 +113,30 @@
     border-radius: 50%;
     background: #f0c419;
   }
-  [data-state="passed"] .light { background: #2fa84f; }
-  [data-state="failed"] .light { background: #d93025; }
-  .name { font-weight: 600; }
-  .state { color: #666; }
-  .error, .notes { grid-column: 1 / -1; margin: 0; }
-  .error { white-space: pre-wrap; color: #a50e0e; font-size: 12px; }
-  .notes { padding-left: 1.2rem; color: #555; }
+  [data-state="passed"] .light {
+    background: #2fa84f;
+  }
+  [data-state="failed"] .light {
+    background: #d93025;
+  }
+  .name {
+    font-weight: 600;
+  }
+  .state {
+    color: #666;
+  }
+  .error,
+  .notes {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .error {
+    white-space: pre-wrap;
+    color: #a50e0e;
+    font-size: 12px;
+  }
+  .notes {
+    padding-left: 1.2rem;
+    color: #555;
+  }
 </style>

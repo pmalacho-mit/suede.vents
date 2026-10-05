@@ -4,10 +4,18 @@
   import type Self from "./Grid.svelte";
   import type { Test, Widen, Sweater } from "../dsl.import.meta.vitest";
 
-  let { columns = 2, gap = "1rem", children }: { columns?: number; gap?: string; children: Snippet } = $props();
+  let {
+    columns = 2,
+    gap = "1rem",
+    children,
+  }: { columns?: number; gap?: string; children: Snippet } = $props();
 </script>
 
-<div class="grid" style:gap style:grid-template-columns="repeat({columns}, max-content)">
+<div
+  class="grid"
+  style:gap
+  style:grid-template-columns="repeat({columns}, max-content)"
+>
   {@render children()}
 </div>
 
@@ -44,7 +52,12 @@
     const grid = pocket.el.querySelector("div")!;
     expect(grid.style.gridTemplateColumns).toBe("repeat(2, max-content)");
     expect(grid.style.gap).toBe("1rem");
-    expect([...grid.children].map((child) => child.textContent)).toEqual(["a", "b", "c", "d"]);
+    expect([...grid.children].map((child) => child.textContent)).toEqual([
+      "a",
+      "b",
+      "c",
+      "d",
+    ]);
   })}
 {/snippet}
 
@@ -76,5 +89,8 @@
 {/snippet}
 
 <style>
-  .grid { display: grid; align-items: start; }
+  .grid {
+    display: grid;
+    align-items: start;
+  }
 </style>

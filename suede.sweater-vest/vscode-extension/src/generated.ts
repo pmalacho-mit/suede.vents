@@ -9,10 +9,13 @@ const SCHEME = `${ID}-generated`;
 export function generatedViews(): [vscode.Disposable, typeof showAgainst] {
   const texts = new Map<string, string>();
   const changed = new vscode.EventEmitter<vscode.Uri>();
-  const provider = vscode.workspace.registerTextDocumentContentProvider(SCHEME, {
-    onDidChange: changed.event,
-    provideTextDocumentContent: (uri) => texts.get(uri.fsPath) ?? "",
-  });
+  const provider = vscode.workspace.registerTextDocumentContentProvider(
+    SCHEME,
+    {
+      onDidChange: changed.event,
+      provideTextDocumentContent: (uri) => texts.get(uri.fsPath) ?? "",
+    },
+  );
 
   async function showAgainst(uri: vscode.Uri, text: string, what: string) {
     texts.set(uri.fsPath, text);

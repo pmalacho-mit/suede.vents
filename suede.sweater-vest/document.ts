@@ -143,7 +143,8 @@ const namesIn = (node: Node, skip: Set<Node>, into = new Set<string>()) => {
     if (n.type === "Identifier" && isReference(n, parent, key))
       into.add(n.name as string);
     // a component tag names its root too
-    else if (n.type === "Component") into.add((n.name as string).split(".")[0]!);
+    else if (n.type === "Component")
+      into.add((n.name as string).split(".")[0]!);
   return into;
 };
 
@@ -192,7 +193,11 @@ function testCall(
 }
 
 // a node that is there to show the test — an element given `test`, a tag reading it — is not usage
-function* testDisplay(body: Node[], test: string, subject: string): Generator<Node> {
+function* testDisplay(
+  body: Node[],
+  test: string,
+  subject: string,
+): Generator<Node> {
   for (const node of body) {
     if (
       node.type === "ExpressionTag" ||
@@ -215,7 +220,12 @@ function* testDisplay(body: Node[], test: string, subject: string): Generator<No
     );
     if (
       shown.length &&
-      shown.every((c) => c.type !== "Text" && refers(c, test) && !uses([c], subject, new Set()))
+      shown.every(
+        (c) =>
+          c.type !== "Text" &&
+          refers(c, test) &&
+          !uses([c], subject, new Set()),
+      )
     )
       yield node;
     else yield* testDisplay(children, test, subject);
@@ -308,8 +318,11 @@ export function document(
   const node = snippetNode(source, snippet);
   // the comment just above the snippet describes it, unless it is a directive
   const above = source.slice(0, snippet.start).trimEnd();
-  const comment = above.endsWith("-->") ? above.slice(above.lastIndexOf("<!--") + 4, -3).trim() : "";
-  const description = comment && !comment.startsWith("svelte-ignore") ? comment : null;
+  const comment = above.endsWith("-->")
+    ? above.slice(above.lastIndexOf("<!--") + 4, -3).trim()
+    : "";
+  const description =
+    comment && !comment.startsWith("svelte-ignore") ? comment : null;
   const body = (node.body as { nodes: Node[] }).nodes;
   const subject = snippet.params.find((p) => p.kind === "subject")!;
   const test = snippet.params.find((p) => p.kind === "test")?.name ?? null;
@@ -319,7 +332,9 @@ export function document(
 
   // the test, and what only shows it, leave the usage: nothing in them counts
   const call = test ? testCall(body, test) : null;
-  const removed = new Set<Node>(test ? testDisplay(body, test, subject.name) : []);
+  const removed = new Set<Node>(
+    test ? testDisplay(body, test, subject.name) : [],
+  );
   if (call) removed.add(call.tag);
 
   // what the usage keeps: everything the markup reads, and what the pockets' types name
@@ -370,7 +385,8 @@ export function document(
     const init = (d.declarations as Node[])[0]!.init as Node;
     const value = s.slice(init.start!, init.end!);
     const reads = derived.some((n) => n && refers(init, n));
-    if (reads) derived.push(((d.declarations as Node[])[0]!.id as Node).name as string);
+    if (reads)
+      derived.push(((d.declarations as Node[])[0]!.id as Node).name as string);
     hoisted.push(
       `${s.slice(d.start!, init.start!)}${reads ? `$derived(${value})` : value};`,
     );
@@ -388,9 +404,13 @@ export function document(
   const lines: string[] = [
     `import ${subject.name} from ${quote(`./${path.basename(file)}`)};`,
   ];
-  for (const p of snippet.params) if (p.kind === "value") asValue.set(p.local, p.name);
+  for (const p of snippet.params)
+    if (p.kind === "value") asValue.set(p.local, p.name);
   // the subject still given the test: the usage is handed it too
-  const dsl = test && keep.has(test) ? analysis.imports.find((i) => isDslModule(i.specifier)) : undefined;
+  const dsl =
+    test && keep.has(test)
+      ? analysis.imports.find((i) => isDslModule(i.specifier))
+      : undefined;
   if (dsl) lines.push(`import type { Test } from ${quote(dsl.specifier)};`);
   for (const i of analysis.imports) {
     // the DSL names nothing a reader writes, and the component's own type import is now the component
@@ -415,7 +435,9 @@ export function document(
       `import { ${sweaters.map((p) => (p.kind === "sweater" ? (p.member === p.name ? p.name : `${p.member} as ${p.name}`) : "")).join(", ")} } from ${quote(spec)};`,
     );
   }
-  const state: string[] = dsl ? [`let { ${test} }: { ${test}: Test } = $props();`] : [];
+  const state: string[] = dsl
+    ? [`let { ${test} }: { ${test}: Test } = $props();`]
+    : [];
   for (const p of pockets) {
     if (p.kind !== "pocket") continue;
     const values = new Map(options.pockets.get(p.name) ?? []);
@@ -658,7 +680,12 @@ declare namespace document {
   export type Renamed = Expect<
     Invoke<
       typeof usageOf,
-      [Aliased, "aliased", {}, 'import type { createThing, Thing } from "./thing.ts";\nimport type Frame from "./Frame.svelte";']
+      [
+        Aliased,
+        "aliased",
+        {},
+        'import type { createThing, Thing } from "./thing.ts";\nimport type Frame from "./Frame.svelte";',
+      ]
     >,
     "startsWith",
     '<script lang="ts">\n  import C from "./Probe.svelte";\n  import { createThing as make, type Thing } from "./thing.ts";\n  import Box from "./Frame.svelte";\n</script>'
@@ -692,7 +719,15 @@ declare namespace document {
   export type Subject = Expect<
     Invoke<typeof usageOf, [Given, "given"]>,
     "=",
-    '<script lang="ts">\n  import C from "./Probe.svelte";\n  import type { Test } from "../lib/dsl.import.meta.vitest";\n\n  let { test }: { test: Test } = $props();\n</script>\n\n<div><C {test} /></div>\n'
+    `<script lang="ts">
+  import C from "./Probe.svelte";
+  import type { Test } from "../lib/dsl.import.meta.vitest";
+
+  let { test }: { test: Test } = $props();
+</script>
+
+<div><C {test} /></div>
+`
   >;
 
   type Described = `

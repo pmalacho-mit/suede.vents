@@ -8,7 +8,8 @@ import { parseWithCompilerOf } from "./svelte.ts";
 
 export type LocatedItem = vscode.TestItem & { uri: vscode.Uri };
 
-export const testId = (uri: vscode.Uri, name: string) => `${uri.toString()}::${name}`;
+export const testId = (uri: vscode.Uri, name: string) =>
+  `${uri.toString()}::${name}`;
 
 export const childrenOf = (collection: vscode.TestItemCollection) => {
   const items: vscode.TestItem[] = [];
@@ -18,7 +19,9 @@ export const childrenOf = (collection: vscode.TestItemCollection) => {
   return items;
 };
 
-export function* everyItem(items: readonly vscode.TestItem[]): Generator<vscode.TestItem> {
+export function* everyItem(
+  items: readonly vscode.TestItem[],
+): Generator<vscode.TestItem> {
   for (const item of items) {
     yield item;
     yield* everyItem(childrenOf(item.children));
@@ -38,7 +41,10 @@ const textOf = (uri: vscode.Uri) => {
   }
 };
 
-export function testTree(controller: vscode.TestController, output: vscode.OutputChannel) {
+export function testTree(
+  controller: vscode.TestController,
+  output: vscode.OutputChannel,
+) {
   const toldUnparsable = new Set<string>();
   const discovered = new Map<string, DiscoveredTest>();
 
@@ -56,7 +62,11 @@ export function testTree(controller: vscode.TestController, output: vscode.Outpu
   const fileItem = (uri: vscode.Uri) => {
     const file =
       controller.items.get(uri.toString()) ??
-      controller.createTestItem(uri.toString(), vscode.workspace.asRelativePath(uri), uri);
+      controller.createTestItem(
+        uri.toString(),
+        vscode.workspace.asRelativePath(uri),
+        uri,
+      );
     controller.items.add(file);
     return file;
   };
@@ -93,7 +103,11 @@ export function testTree(controller: vscode.TestController, output: vscode.Outpu
 
   const itemFrom = (from?: vscode.TestItem | string): LocatedItem | null => {
     const item =
-      typeof from === "string" ? [...everyItem(childrenOf(controller.items))].find(({ id }) => id === from) : from;
+      typeof from === "string"
+        ? [...everyItem(childrenOf(controller.items))].find(
+            ({ id }) => id === from,
+          )
+        : from;
     return item?.uri ? (item as LocatedItem) : null;
   };
 

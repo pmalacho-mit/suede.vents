@@ -13,7 +13,9 @@ path. It parses with your project's own Svelte compiler and runs the library's
 `cli.ts` with Node 24.
 
 - **Run** — a single snippet, through Vitest, reported back at its own line. A
-  component runs when you open or save it, and the lens shows where each stands.
+  component runs when you open it in a tab or save it there, and the lens shows
+  where each stands. One another extension loads without a tab — a formatter
+  saving a batch, say — is listed, but not run.
 - **Open page** — the snippet on your dev server, under `sweater-vest.pagesRoute`
   (default `/vests`), in a panel beside the editor. The extension reaches the
   server at `sweater-vest.devServer` (default `localhost:5173`) and asks it

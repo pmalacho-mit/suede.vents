@@ -9,19 +9,33 @@
     align = "center",
     wrap = true,
     children,
-  }: { gap?: string; align?: "start" | "center" | "end" | "stretch"; wrap?: boolean; children: Snippet } = $props();
+  }: {
+    gap?: string;
+    align?: "start" | "center" | "end" | "stretch";
+    wrap?: boolean;
+    children: Snippet;
+  } = $props();
 </script>
 
-<div class="row" style:gap style:align-items={align} style:flex-wrap={wrap ? "wrap" : "nowrap"}>
+<div
+  class="row"
+  style:gap
+  style:align-items={align}
+  style:flex-wrap={wrap ? "wrap" : "nowrap"}
+>
   {@render children()}
 </div>
 
 <!-- variants side by side, a gap apart, lined up along their bottoms -->
 {#snippet usage(Row: typeof Self, Labeled: typeof Sweater.Labeled)}
   <Row gap="2rem" align="end">
-    <Labeled label="size=small"><span style="font-size: 12px">Aa</span></Labeled>
-    <Labeled label="size=medium"><span style="font-size: 18px">Aa</span></Labeled>
-    <Labeled label="size=large"><span style="font-size: 24px">Aa</span></Labeled>
+    <Labeled label="size=small"><span style="font-size: 12px">Aa</span></Labeled
+    >
+    <Labeled label="size=medium"
+      ><span style="font-size: 18px">Aa</span></Labeled
+    >
+    <Labeled label="size=large"><span style="font-size: 24px">Aa</span></Labeled
+    >
   </Row>
 {/snippet}
 
@@ -45,7 +59,11 @@
     expect(row.style.gap).toBe("1rem");
     expect(row.style.alignItems).toBe("center");
     expect(row.style.flexWrap).toBe("wrap");
-    expect([...row.children].map((child) => child.textContent)).toEqual(["a", "b", "c"]);
+    expect([...row.children].map((child) => child.textContent)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
   })}
 {/snippet}
 
@@ -53,12 +71,21 @@
 {#snippet overrides(
   Row: typeof Self,
   Status: typeof Sweater.Status,
-  pocket: { el: HTMLDivElement; gap: Widen<"0.25rem">; stretch: Widen<false>; wrap: Widen<false> },
+  pocket: {
+    el: HTMLDivElement;
+    gap: Widen<"0.25rem">;
+    stretch: Widen<false>;
+    wrap: Widen<false>;
+  },
   test: Test,
 )}
   <Status {test} />
   <div bind:this={pocket.el}>
-    <Row gap={pocket.gap} align={pocket.stretch ? "stretch" : "start"} wrap={pocket.wrap}>
+    <Row
+      gap={pocket.gap}
+      align={pocket.stretch ? "stretch" : "start"}
+      wrap={pocket.wrap}
+    >
       <span>one</span>
       <span>two</span>
     </Row>
@@ -79,5 +106,8 @@
 {/snippet}
 
 <style>
-  .row { display: flex; flex-direction: row; }
+  .row {
+    display: flex;
+    flex-direction: row;
+  }
 </style>

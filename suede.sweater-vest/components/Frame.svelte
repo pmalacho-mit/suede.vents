@@ -11,10 +11,22 @@
     background = "white",
     border = true,
     children,
-  }: { element?: HTMLDivElement; padding?: string; background?: string; border?: boolean; children: Snippet } = $props();
+  }: {
+    element?: HTMLDivElement;
+    padding?: string;
+    background?: string;
+    border?: boolean;
+    children: Snippet;
+  } = $props();
 </script>
 
-<div class="frame" class:border bind:this={element} style:padding style:background>
+<div
+  class="frame"
+  class:border
+  bind:this={element}
+  style:padding
+  style:background
+>
   {@render children()}
 </div>
 
@@ -44,7 +56,11 @@
     expect(pocket.frame.style.background).toBe("white");
     expect(pocket.frame.classList.contains("border")).toBe(true);
     const png = await capture(pocket.frame, "the frame");
-    note(png ? "captured a PNG of the frame" : "captured nothing: only the report takes screenshots");
+    note(
+      png
+        ? "captured a PNG of the frame"
+        : "captured nothing: only the report takes screenshots",
+    );
   })}
 {/snippet}
 
@@ -84,6 +100,13 @@
 {/snippet}
 
 <style>
-  .frame { display: inline-block; width: fit-content; box-sizing: border-box; }
-  .border { border: 1px solid #ddd; border-radius: 6px; }
+  .frame {
+    display: inline-block;
+    width: fit-content;
+    box-sizing: border-box;
+  }
+  .border {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+  }
 </style>

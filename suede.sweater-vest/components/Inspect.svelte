@@ -6,12 +6,16 @@
   let { value, label }: { value: unknown; label?: string } = $props();
 
   const seen = (_key: string, v: unknown) =>
-    v instanceof Element ? `<${v.tagName.toLowerCase()}>` : typeof v === "function" ? `[function ${v.name}]` : v;
+    v instanceof Element
+      ? `<${v.tagName.toLowerCase()}>`
+      : typeof v === "function"
+        ? `[function ${v.name}]`
+        : v;
   const text = $derived(JSON.stringify($state.snapshot(value), seen, 2));
 </script>
 
 <pre class="inspect">{#if label}<b>{label}</b>
-{/if}{text}</pre>
+  {/if}{text}</pre>
 
 <!-- a pocket beside what changes it: the view follows every write -->
 {#snippet usage(
@@ -65,9 +69,7 @@
     pocket.items.push("b");
     flushSync();
     expect(whole.textContent).toContain('"count": 2');
-    expect(whole.textContent).toContain(
-      '"items": [\n    "a",\n    "b"\n  ]',
-    );
+    expect(whole.textContent).toContain('"items": [\n    "a",\n    "b"\n  ]');
     expect(whole.textContent).not.toContain('"count": 1');
     expect(part.textContent).toBe("count\n2");
   })}
@@ -96,7 +98,11 @@
 {#snippet labeled(
   Inspect: typeof Self,
   Status: typeof Sweater.Status,
-  pocket: { titled: HTMLDivElement; plain: HTMLDivElement; label: Widen<"state"> },
+  pocket: {
+    titled: HTMLDivElement;
+    plain: HTMLDivElement;
+    label: Widen<"state">;
+  },
   test: Test,
 )}
   <Status {test} />
@@ -121,7 +127,9 @@
   .inspect {
     margin: 0;
     padding: 0.5rem 0.6rem;
-    font: 12px/1.4 ui-monospace, monospace;
+    font:
+      12px/1.4 ui-monospace,
+      monospace;
     background: #f4f4f4;
     color: #222;
     border-radius: 6px;

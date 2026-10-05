@@ -69,7 +69,11 @@ const snippetOf = (analysis: Analysis, name: string) => {
 
 export const paramsOf = (markup: string, snippet: string, script = "") =>
   snippetOf(analyzed(markup, script), snippet).params.map((p) =>
-    p.kind === "value" ? `${p.kind}:${p.local}` : p.kind === "sweater" ? `${p.kind}:${p.member}` : p.kind,
+    p.kind === "value"
+      ? `${p.kind}:${p.local}`
+      : p.kind === "sweater"
+        ? `${p.kind}:${p.member}`
+        : p.kind,
   );
 
 export const lineOf = (markup: string, snippet: string): number =>
@@ -101,7 +105,10 @@ export const generatedWhole = (source: string, snippet: string): string => {
   return generate(analysis, snippetOf(analysis, snippet), {
     runtime: "/project/lib/runtimes/common.svelte.ts",
     components: "/project/lib/components/index.ts",
-    pockets: new Map<string, { initial: string; members: []; imports: Map<string, Set<string>> }>(),
+    pockets: new Map<
+      string,
+      { initial: string; members: []; imports: Map<string, Set<string>> }
+    >(),
   }).code;
 };
 
@@ -143,22 +150,53 @@ export function pocketOf(name: string, snippet: string, param: string) {
 const COMPONENTS = "/project/lib/components/index.ts";
 
 /** A snippet as documentation, pocket values given by hand as `{ pocket: { member: "2" } }`. */
-export const documented = (markup: string, snippet: string, pockets: Record<string, Record<string, string>> = {}, script = "", file = FILE) => {
+export const documented = (
+  markup: string,
+  snippet: string,
+  pockets: Record<string, Record<string, string>> = {},
+  script = "",
+  file = FILE,
+) => {
   const analysis = analyzed(markup, script, file);
   return document(analysis, snippetOf(analysis, snippet), {
     components: COMPONENTS,
-    pockets: new Map(Object.entries(pockets).map(([name, members]) => [name, Object.entries(members)])),
+    pockets: new Map(
+      Object.entries(pockets).map(([name, members]) => [
+        name,
+        Object.entries(members),
+      ]),
+    ),
   });
 };
 
-export const usageOf = (markup: string, snippet: string, pockets: Record<string, Record<string, string>> = {}, script = ""): string =>
-  documented(markup, snippet, pockets, script).usage;
+export const usageOf = (
+  markup: string,
+  snippet: string,
+  pockets: Record<string, Record<string, string>> = {},
+  script = "",
+): string => documented(markup, snippet, pockets, script).usage;
 
-export const verifiedByOf = (markup: string, snippet: string, pockets: Record<string, Record<string, string>> = {}): string | null =>
-  documented(markup, snippet, pockets).verifiedBy;
+export const verifiedByOf = (
+  markup: string,
+  snippet: string,
+  pockets: Record<string, Record<string, string>> = {},
+): string | null => documented(markup, snippet, pockets).verifiedBy;
 
-export const markdownFor = (markup: string, snippet: string, level = 2): string => markdownOf(documented(markup, snippet), level);
+export const markdownFor = (
+  markup: string,
+  snippet: string,
+  level = 2,
+): string => markdownOf(documented(markup, snippet), level);
 
 /** The usage of a probe that is itself one of the library's components: beside the components index. */
-export const usageAmongComponentsOf = (markup: string, snippet: string): string =>
-  documented(markup, snippet, {}, "", path.join(path.dirname(COMPONENTS), "Probe.svelte")).usage;
+export const usageAmongComponentsOf = (
+  markup: string,
+  snippet: string,
+): string =>
+  documented(
+    markup,
+    snippet,
+    {},
+    "",
+    path.join(path.dirname(COMPONENTS), "Probe.svelte"),
+  ).usage;

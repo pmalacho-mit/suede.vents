@@ -14,22 +14,28 @@ const NAMES = ["vite.config", "vitest.config"];
 const EXTENSIONS = [".ts", ".mts", ".cts", ".js", ".mjs", ".cjs"];
 
 /** The Vite and Vitest config file names a project may have, in the order Vitest prefers them. */
-export const CONFIG_FILES = [...NAMES].reverse().flatMap((name) => EXTENSIONS.map((ext) => name + ext));
+export const CONFIG_FILES = [...NAMES]
+  .reverse()
+  .flatMap((name) => EXTENSIONS.map((ext) => name + ext));
 
 /** The same, as one glob for a file watcher or a workspace search. */
 export const CONFIG_GLOB = `**/{${NAMES.join(",")}}{${EXTENSIONS.join(",")}}`;
 
 // `import x from "…"`, `import "…"`, `export … from "…"`, `import("…")`, `require("…")`
-const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']([^"']+)["']/g;
+const SPECIFIER =
+  /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']([^"']+)["']/g;
 
 // a comment, or a string that may hold what looks like one (`"http://…"`), which is kept
-const COMMENT_OR_STRING = /("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
+const COMMENT_OR_STRING =
+  /("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
 
 // a commented-out import is not an import: the plugin it names is not loaded
 export const specifiersIn = (source: string) =>
-  [...source.replace(COMMENT_OR_STRING, (_, string?: string) => string ?? "").matchAll(SPECIFIER)].flatMap(
-    (match) => match[1] ?? [],
-  );
+  [
+    ...source
+      .replace(COMMENT_OR_STRING, (_, string?: string) => string ?? "")
+      .matchAll(SPECIFIER),
+  ].flatMap((match) => match[1] ?? []);
 
 const realpath = (file: string) => {
   try {
@@ -101,7 +107,8 @@ export function projectOf(file: string, boundary: string): Project | null {
   for (let dir = path.dirname(path.resolve(file)); ; dir = path.dirname(dir)) {
     const project = projectAt(dir);
     if (project) return project;
-    if (dir === stop || path.dirname(dir) === dir || !dir.startsWith(stop)) return null;
+    if (dir === stop || path.dirname(dir) === dir || !dir.startsWith(stop))
+      return null;
   }
 }
 
